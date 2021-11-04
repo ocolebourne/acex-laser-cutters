@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "acex-iot-e4bf4"
+  },
+  "targets": {
+    "acex-iot-e4bf4": {
+      "hosting": {
+        "prod": [
+          "acex-iot"
+        ],
+        "dev": [
+          "acex-iot-e4bf4"
+        ]
+      }
+    }
+  }
+}
