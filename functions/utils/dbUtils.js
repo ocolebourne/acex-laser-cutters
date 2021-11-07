@@ -30,26 +30,25 @@ module.exports = {
     } finally {
         await client.close();
     };
-    // MongoClient.connect(uri, (err, client) => {
-
-    //   if (err) {
-    //     console.log(err);
-    //   } else {
-    //     db = client.db(db_name);
-    //     db.collection(coll).insertOne(obj, (err, dbres) => {
-    //       if (err) throw err;
-    //       console.log("Document inserted");
-    //       responseFunc(dbres);
-    //     });
-    //   };
-    //   client.close();
-    // });
+  },
+  addManyDocs: async function (coll, obj) {
+    try {
+        await client.connect();
+        const db = client.db(db_name);
+        const dbres = await db.collection(coll).insertMany(obj);
+        console.log("Documents inserted");
+        return dbres;
+    } catch(err) {
+        console.log(err)
+    } finally {
+        await client.close();
+    };
   },
   updateDoc: async function (coll, query, obj) {
     try {
         await client.connect();
         const db = client.db(db_name);
-        const setObj = { $addToSet: { Permissions: { $each: obj } } };
+        const setObj = { $set: obj };
         const dbres = await db.collection(coll).updateOne(query, setObj);
         console.log("Document updated");
         return dbres;
@@ -58,21 +57,6 @@ module.exports = {
     } finally {
         await client.close();
     };
-    // MongoClient.connect(uri, (err, client) => {
-    //   if (err) {
-    //     console.log(err);
-    //   } else {
-    //     db = client.db(db_name);
-    //     var setObj = { $addToSet: { Permissions: { $each: obj } } };
-    //     console.log("updating", query, obj, setObj);
-    //     db.collection(coll).updateOne(query, setObj, (err, dbres) => {
-    //       if (err) throw err;
-    //       console.log("Document updated");
-    //       responseFunc(dbres);
-    //     });
-    //   };
-    //   client.close();
-    // });
   },
   deleteDoc: async function (coll, query) {
     try {
@@ -86,18 +70,5 @@ module.exports = {
     } finally {
         await client.close();
     };
-//     MongoClient.connect(uri, (err, client) => {
-//         if (err) {
-//           console.log(err);
-//         } else {
-//           db = client.db(db_name);
-//           db.collection(coll).deleteMany(query, (err, dbres) => {
-//             if (err) throw err;
-//             console.log("Document(s) deleted");
-//             responseFunc(dbres);
-//           });
-//         };
-//         client.close();
-//       });
    }
 };
