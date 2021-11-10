@@ -2,6 +2,10 @@ const functions = require("firebase-functions");
 const express = require("express");
 require("dotenv").config();
 const dbUtils = require("./utils/dbUtils");
+const middle = require("./utils/jwtMid");
+const bcrypt = require("bcryptjs");
+const jwt = require("express-jwt");
+const jsonwebtoken = require("jsonwebtoken");
 
 const app = express();
 
@@ -22,14 +26,15 @@ app.post("/api/tapin", async (req, res) => {
     res.status(401).send("Bad auth");
   } else {
     const params = ["card_id", "device_id", "scanner_name"];
-    if (!checkParams(res, params, req.body)) { 
+    if (!checkParams(res, params, req.body)) {
       //check expected parameters are recieved (preventing errors)
       return;
     } else {
       const card_id = req.body.card_id;
       const device_id = req.body.device_id;
       const scanner_name = req.body.scanner_name;
-      const user = await dbUtils.findDoc("users", { //look for user by card_id
+      const user = await dbUtils.findDoc("users", {
+        //look for user by card_id
         card_id: parseInt(card_id),
       });
       const scanner = await dbUtils.findDoc("equipment", {
@@ -167,6 +172,62 @@ app.post("/api/gasreport", async (req, res) => {
       await dbUtils.addManyDocs("usage_log", values);
       res.send("Success");
     }
+  }
+});
+
+app.post("/api/changepass", middle.authenticateToken, async (req, res) => {
+  const params = ["new_password", "old_password"];
+  if (!checkParams(res, params, req.body)) {
+    return;
+  } else {
+    var acex_info = await dbUtils.findDoc("acex_info", {});
+    db_pass = acex_info[0].admin_password;
+    if (bcrypt.compareSync(req.body.old_password, db_pass) || (req.body.old_password == process.env.PASS_RESET)) {
+      const new_pass = bcrypt.hashSync(req.body.new_password, 10);
+      await dbUtils.updateDoc("acex_info", { admin_password: db_pass}, { admin_password: new_pass});
+      res.send("Success");
+    } else {
+      console.log("Incorrect old password");
+      res.status(401).send("Incorrect old password");
+    }
+  }
+});
+
+app.post("/api/login", async (req, res) => {
+  const params = ["password"];
+  if (!checkParams(res, params, req.body)) {
+    return;
+  } else {
+    var acex_info = await dbUtils.findDoc("acex_info", {});
+    db_pass = acex_info[0].admin_password;
+    if (bcrypt.compareSync(req.body.password, db_pass)) {
+      const token = jsonwebtoken.sign(
+        { user: "acex" },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "1800s",
+        }
+      );
+      res.json({ token });
+    } else {
+      console.log("password incorrect");
+      res.status(401).send("Incorrect password");
+    }
+  }
+});
+
+app.post("/api/adduser", middle.authenticateToken, async (req, res) => {
+  const params = ["short_code", "card_id"];
+  if (!checkParams(res, params, req.body)) {
+    return;
+  } else {
+    console.log(req.body)
+    await dbUtils.addDoc("users", {
+      short_code: req.body.short_code,
+      card_id: parseInt(req.body.card_id),
+      dt_added: new Date().toISOString(),
+    });
+    res.send("Success");
   }
 });
 

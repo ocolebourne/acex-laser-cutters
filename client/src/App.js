@@ -3,23 +3,23 @@
 import React from "react";
 import logo from "./logo.svg";
 import "./App.css";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+
+import Dashboard from "./pages/Dashboard";
+import Admin from "./pages/Admin";
+
+import { Container } from "react-bootstrap";
 
 function App() {
   const [data, setData] = React.useState(null);
 
-  React.useEffect(() => {
-    fetch("/api")
-      .then((res) => res.json())
-      .then((data) => setData(data.message));
-  }, []);
-
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>{!data ? "Loading..." : data}</p>
-      </header>
-    </div>
+    <BrowserRouter className="App">
+        <Routes>
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/" element={<Dashboard />} />
+        </Routes>
+    </BrowserRouter>
   );
 }
 

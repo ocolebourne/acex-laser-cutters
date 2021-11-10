@@ -11,3 +11,98 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+h1 {
+  margin-top: 50px;
+  
+}
+
+h2 {
+  margin-top: 20px
+}
+
+
+.mt50{
+  margin-top: 50px;
+}
+
+.mt30{
+  margin-top: 30px;
+}
+
+.mb10{
+  margin-bottom: 10px;
+}
+
+.mba {
+  margin-bottom: auto;
+}
+
+.mta {
+  margin-top: auto;
+}
+
+.mla {
+  margin-left: auto;
+}
+
+.mra {
+  margin-right: auto;
+}
+
+.success-message{
+  color: #50a14f;
+}
+
+.error-message{
+  color: #dc3545;
+}
+
+
+.admin-card {
+  width:100%;
+  height: 200px;
+  background-color: #f5f5f7;
+  border-radius: 25px;
+  padding: 20px;
+  margin-bottom: 24px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  
+}
+
+.admin-card:hover {
+  outline: solid 2px #cecece;
+  transition: 0.3s;
+}
+
+.admin-card-body {
+  margin-top: auto;
+}
+
+
+.scanner-button{
+  width:150px;
+}
+
+.scanner-input {
+  color: transparent;
+  width: 0;
+  height:0;
+  border: none;
+}
+
+.scanner-input:focus {
+  outline: none;
+}
+
+
+
+.modal-footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+}
