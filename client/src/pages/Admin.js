@@ -67,20 +67,120 @@ import {
 
 function DeleteUserModal(props) {
   const [readOnly, setReadOnly] = React.useState(false);
+  const [cardID, setCardID] = React.useState("");
+  const [scannerEnabled, setScannerEnabled] = React.useState(false);
   const [loadingSpinner, setLoadingSpinner] = React.useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = React.useState(false);
+  const [showErrorMessage, setShowErrorMessage] = React.useState(false);
+  const [shortCodeInvalid, setShortCodeInvalid] = React.useState(false);
+  const [cardIDInvalid, setCardIDInvalid] = React.useState(false);
+  const [fieldErrorMsg, setFieldErrorMsg] = React.useState("");
 
-  const oldPassword = React.useRef();
-  const newPassword = React.useRef();
+  const cardIdInput = React.useRef();
+  const shortCode = React.useRef();
 
   const handleKeyPress = (event) => {
+    resetModal();
     if (event.key === "Enter") {
-      onSubmit();
+      if (scannerEnabled) {
+        //if enter key prevent default
+        event.preventDefault();
+        console.log(cardIdInput.current.value);
+        if (cardIdInput.current.value.length === 10) {
+          //if input data length 10, run finduser
+          console.log("here");
+          const currCardId = cardIdInput.current.value;
+          setCardID(currCardId);
+        }
+      } else {
+        onSubmit();
+        readOnly(true);
+      }
     }
   };
 
-  function onSubmit() {
-    setReadOnly(true);
+  function resetModal() {
+    setShowSuccessMessage(false);
+    setShowErrorMessage(false);
+    setShortCodeInvalid(false);
+    setCardIDInvalid(false);
+    setReadOnly(false);
   }
+
+  function onSubmit() {
+    const shortC = shortCode.current.value;
+    const card = cardIdInput.current.value;
+    if (!shortC && !card) {
+      setFieldErrorMsg("Please enter valid user details");
+      setShortCodeInvalid(true);
+      setCardIDInvalid(true);
+    } else {
+      setReadOnly(true);
+      const requestOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+        },
+      };
+      if (card) {
+        requestOptions.body = JSON.stringify({
+          card_id: card,
+        });
+      } else if (shortC) {
+        requestOptions.body = JSON.stringify({
+          short_code: shortC,
+        });
+      }
+      fetch("/api/delUser", requestOptions)
+        .then((response) => {
+          if (response.ok) {
+            setLoadingSpinner(false);
+            setShowSuccessMessage(true);
+            setTimeout(() => {
+              props.onHide();
+              resetModal();
+              setCardID("");
+            }, 2000);
+          } else if (response.status === 403) {
+            console.log("Auth token bad");
+            resetModal();
+            setCardID("");
+            props.kick();
+            throw new Error(response.statusText);
+          } else if (response.status === 404) {
+            console.log("User not found");
+            setFieldErrorMsg("User not found, try again");
+            setCardID("");
+            if (card) {
+              setCardIDInvalid(true);
+            } else if (shortC) {
+              setShortCodeInvalid(true);
+            }
+            throw new Error(response.statusText);
+          } else {
+          }
+        })
+        .catch((error) => {
+          console.log(error);
+          setReadOnly(false);
+          setLoadingSpinner(false);
+          setShowErrorMessage(true);
+        });
+    }
+  }
+
+  React.useEffect(() => {
+    if (scannerEnabled) {
+      cardIdInput.current.value = "";
+      cardIdInput.current.focus();
+      setShowSuccessMessage(false);
+      setShowErrorMessage(false);
+      setShortCodeInvalid(false);
+      setCardIDInvalid(false);
+      setCardID("");
+    }
+  }, [scannerEnabled]);
 
   return (
     <Modal
@@ -89,8 +189,16 @@ function DeleteUserModal(props) {
       aria-labelledby="contained-modal-title-vcenter"
       centered
     >
+      <input
+        className="scanner-input"
+        ref={cardIdInput}
+        onKeyPress={handleKeyPress}
+        onBlur={() => setScannerEnabled(false)}
+      />
       <Modal.Header closeButton>
-        <Modal.Title id="contained-modal-title-vcenter">Add User</Modal.Title>
+        <Modal.Title id="contained-modal-title-vcenter">
+          Delete User
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form.Group className="mb-3">
@@ -99,17 +207,54 @@ function DeleteUserModal(props) {
             type="text"
             placeholder="e.g. ab1234"
             readOnly={readOnly ? true : false}
+            onKeyPress={handleKeyPress}
+            ref={shortCode}
+            isInvalid={shortCodeInvalid}
           />
+          <Form.Control.Feedback type="invalid">
+            {fieldErrorMsg}
+          </Form.Control.Feedback>
+        </Form.Group>
+        <h5 className="mb20">OR</h5>
+        <Form.Group className="mb-3">
+          <Form.Label>Card ID</Form.Label>
+          <Row>
+            <Col xs="auto">
+              <Button
+                className="scanner-button"
+                onClick={() => setScannerEnabled(true)}
+                variant="primary"
+                disabled={scannerEnabled || readOnly ? true : false}
+              >
+                {scannerEnabled ? "Scan card" : "Enable Scanner"}
+              </Button>
+            </Col>
+            <Col>
+              <Form.Control
+                type="password"
+                placeholder=""
+                value={cardID}
+                readOnly
+                isInvalid={cardIDInvalid}
+              />
+              <Form.Control.Feedback type="invalid">
+                {fieldErrorMsg}
+              </Form.Control.Feedback>
+            </Col>
+          </Row>
         </Form.Group>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="primary" type="submit">
-          Change Password
-        </Button>
-        <Button variant="secondary" onClick={props.onHide}>
-          Cancel
-        </Button>
-      </Modal.Footer>
+      <AdminModalFooter
+        loadingSpinner={loadingSpinner}
+        showErrorMessage={showErrorMessage}
+        showSuccessMessage={showSuccessMessage}
+        readOnly={readOnly}
+        onSubmit={onSubmit}
+        onHide={props.onHide}
+        cancel={"Cancel"}
+        actionButton={"Delete User"}
+        actionButtonRed={true}
+      />
     </Modal>
   );
 }
@@ -159,11 +304,11 @@ function ChangePasswordModal(props) {
             setReadOnly(false);
             setShowSuccessMessage(false);
           }, 2000);
-        } else if (response.status == 401) {
+        } else if (response.status === 401) {
           console.log("Incorrect old password");
           setPasswordError(true);
           throw new Error(response.statusText);
-        } else if (response.status == 403) {
+        } else if (response.status === 403) {
           console.log("Auth token bad");
           props.kick();
           throw new Error(response.statusText);
@@ -234,6 +379,160 @@ function ChangePasswordModal(props) {
   );
 }
 
+// function CheckUserModal(props) {
+//   const [readOnly, setReadOnly] = React.useState(false);
+//   const [cardID, setCardID] = React.useState("");
+//   const [scannerEnabled, setScannerEnabled] = React.useState(false);
+//   const [loadingSpinner, setLoadingSpinner] = React.useState(false);
+//   const [showSuccessMessage, setShowSuccessMessage] = React.useState(false);
+//   const [showErrorMessage, setShowErrorMessage] = React.useState(false);
+//   const [cardIDInvalid, setCardIDInvalid] = React.useState(false);
+//   const [cardIDInvalid, setCardIDInvalid] = React.useState(false);
+
+//   const cardIdInput = React.useRef();
+
+//   const handleKeyPress = (event) => {
+//     resetModal();
+//     if (event.key === "Enter") {
+//       if (scannerEnabled) {
+//         //if enter key prevent default
+//         event.preventDefault();
+//         console.log(cardIdInput.current.value);
+//         if (cardIdInput.current.value.length === 10) {
+//           //if input data length 10, run finduser
+//           console.log("here");
+//           const currCardId = cardIdInput.current.value;
+//           setCardID(currCardId);
+//         }
+//       } else {
+//         onSubmit();
+//         readOnly(true);
+//       }
+//     }
+//   };
+
+//   function resetModal() {
+//     setShowSuccessMessage(false);
+//     setShowErrorMessage(false);
+//     setCardIDInvalid(false);
+//   }
+
+//   function onSubmit() {
+//     const card = cardIdInput.current.value;
+//     if (!card) {
+//       setCardIDInvalid(true);
+//     } else {
+//       setReadOnly(true);
+//       const requestOptions = {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//           Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+//         },
+//         body: JSON.stringify({ card_id: card }),
+//       };
+//       fetch("/api/checkUser", requestOptions)
+//         .then((response) => {
+//           if (response.ok) {
+//             setLoadingSpinner(false);
+//             setShowSuccessMessage(true);
+
+//           } else if (response.status === 403) {
+//             console.log("Auth token bad");
+//             props.kick();
+//             throw new Error(response.statusText);
+//           } else {
+//           }
+//         })
+//         .catch((error) => {
+//           console.log(error);
+//           setReadOnly(false);
+//           setLoadingSpinner(false);
+//           setShowErrorMessage(true);
+//         });
+//     }
+//   }
+
+//   React.useEffect(() => {
+//     if (scannerEnabled) {
+//       cardIdInput.current.value = "";
+//       cardIdInput.current.focus();
+//     }
+//   }, [scannerEnabled]);
+
+//   return (
+//     <Modal
+//       {...props}
+//       size="lg"
+//       aria-labelledby="contained-modal-title-vcenter"
+//       centered
+//     >
+//       <input
+//         className="scanner-input"
+//         ref={cardIdInput}
+//         onKeyPress={handleKeyPress}
+//         onBlur={() => setScannerEnabled(false)}
+//       />
+//       <Modal.Header closeButton>
+//         <Modal.Title id="contained-modal-title-vcenter">Add User</Modal.Title>
+//       </Modal.Header>
+//       <Modal.Body>
+//         <Form.Group className="mb-3">
+//           <Form.Label>Short code</Form.Label>
+//           <Form.Control
+//             type="text"
+//             placeholder="e.g. ab1234"
+//             readOnly={readOnly ? true : false}
+//             onKeyPress={handleKeyPress}
+//             ref={shortCode}
+//             isInvalid={shortCodeInvalid}
+//           />
+//           <Form.Control.Feedback type="invalid">
+//             Please enter a short code.
+//           </Form.Control.Feedback>
+//         </Form.Group>
+//         <Form.Group className="mb-3">
+//           <Form.Label>Card ID</Form.Label>
+//           <Row>
+//             <Col xs="auto">
+//               <Button
+//                 className="scanner-button"
+//                 onClick={() => setScannerEnabled(true)}
+//                 variant="primary"
+//                 disabled={scannerEnabled || readOnly ? true : false}
+//               >
+//                 {scannerEnabled ? "Scan card" : "Enable Scanner"}
+//               </Button>
+//             </Col>
+//             <Col>
+//               <Form.Control
+//                 type="password"
+//                 placeholder=""
+//                 value={cardID}
+//                 readOnly
+//                 isInvalid={cardIDInvalid}
+//               />
+//               <Form.Control.Feedback type="invalid">
+//                 Please add a card ID.
+//               </Form.Control.Feedback>
+//             </Col>
+//           </Row>
+//         </Form.Group>
+//       </Modal.Body>
+//       <AdminModalFooter
+//         loadingSpinner={loadingSpinner}
+//         showErrorMessage={showErrorMessage}
+//         showSuccessMessage={showSuccessMessage}
+//         readOnly={readOnly}
+//         onSubmit={onSubmit}
+//         onHide={props.onHide}
+//         cancel={"Cancel"}
+//         actionButton={"Add User"}
+//       />
+//     </Modal>
+//   );
+// }
+
 function AddUserModal(props) {
   const [readOnly, setReadOnly] = React.useState(false);
   const [cardID, setCardID] = React.useState("");
@@ -272,6 +571,7 @@ function AddUserModal(props) {
     setShowErrorMessage(false);
     setShortCodeInvalid(false);
     setCardIDInvalid(false);
+    setReadOnly(false);
   }
 
   function onSubmit() {
@@ -298,11 +598,10 @@ function AddUserModal(props) {
             setShowSuccessMessage(true);
             setTimeout(() => {
               props.onHide();
-              setReadOnly(false);
-              setShowSuccessMessage(false);
               setCardID("");
+              resetModal();
             }, 2000);
-          } else if (response.status == 403) {
+          } else if (response.status === 403) {
             console.log("Auth token bad");
             props.kick();
             throw new Error(response.statusText);
@@ -322,6 +621,8 @@ function AddUserModal(props) {
     if (scannerEnabled) {
       cardIdInput.current.value = "";
       cardIdInput.current.focus();
+      resetModal();
+      setCardID("");
     }
   }, [scannerEnabled]);
 
@@ -426,7 +727,7 @@ function AdminModalFooter(props) {
         {props.cancel}
       </Button>
       <Button
-        variant="primary"
+        variant={props.actionButtonRed ? "danger" : "primary"}
         type="submit"
         onClick={() => props.onSubmit()}
         disabled={props.readOnly ? true : false}
@@ -441,6 +742,7 @@ function Admin(props) {
   const [addUserModalShow, setAddUserModalShow] = React.useState(false);
   const [delUserModalShow, setDelUserModalShow] = React.useState(false);
   const [changePassModalShow, setChangePassModalShow] = React.useState(false);
+  // const [checkUserModalShow, setCheckUserModalShow] = React.useState(false);
   const [loggedIn, setLoggedIn] = React.useState(false);
   const [loginReadOnly, setLoginReadOnly] = React.useState(false);
   const [passwordError, setPasswordError] = React.useState(false);
@@ -556,6 +858,11 @@ function Admin(props) {
             onHide={() => setChangePassModalShow(false)}
             kick={() => onKickedOut()}
           />
+          {/* <CheckUserModal
+            show={checkUserModalShow}
+            onHide={() => setCheckUserModalShow(false)}
+            kick={() => onKickedOut()}
+          /> */}
         </Container>
       ) : (
         <Container>

@@ -175,16 +175,23 @@ app.post("/api/gasreport", async (req, res) => {
   }
 });
 
-app.post("/api/changepass", middle.authenticateToken, async (req, res) => {
+app.post("/api/changepass", async (req, res) => {
   const params = ["new_password", "old_password"];
   if (!checkParams(res, params, req.body)) {
     return;
   } else {
     var acex_info = await dbUtils.findDoc("acex_info", {});
     db_pass = acex_info[0].admin_password;
-    if (bcrypt.compareSync(req.body.old_password, db_pass) || (req.body.old_password == process.env.PASS_RESET)) {
+    if (
+      bcrypt.compareSync(req.body.old_password, db_pass) ||
+      req.body.old_password == process.env.PASS_RESET
+    ) {
       const new_pass = bcrypt.hashSync(req.body.new_password, 10);
-      await dbUtils.updateDoc("acex_info", { admin_password: db_pass}, { admin_password: new_pass});
+      await dbUtils.updateDoc(
+        "acex_info",
+        { admin_password: db_pass },
+        { admin_password: new_pass }
+      );
       res.send("Success");
     } else {
       console.log("Incorrect old password");
@@ -221,13 +228,33 @@ app.post("/api/adduser", middle.authenticateToken, async (req, res) => {
   if (!checkParams(res, params, req.body)) {
     return;
   } else {
-    console.log(req.body)
+    console.log(req.body);
     await dbUtils.addDoc("users", {
       short_code: req.body.short_code,
       card_id: parseInt(req.body.card_id),
       dt_added: new Date().toISOString(),
     });
     res.send("Success");
+  }
+});
+
+app.post("/api/deluser", middle.authenticateToken, async (req, res) => {
+  var delQuery = {};
+  if (req.body.short_code) {
+    delQuery = { short_code: req.body.short_code };
+  } else if (req.body.card_id) {
+    delQuery = { card_id: req.body.card_id };
+  } else {
+    const params = ["error"];
+    checkParams(res, params);
+  }
+  console.log(req.body);
+  const user = await dbUtils.findDoc("users", delQuery);
+  if (user.length > 0) {
+    await dbUtils.deleteDoc("users", delQuery);
+    res.send("Success");
+  } else {
+    res.status(404).send("User not found");
   }
 });
 
