@@ -41,8 +41,14 @@ int stackCounter = 0;
 int sampleNo = 10;
 int samplePeriod = 10000;
 int sampleInterval = 30;
-unsigned long startEpoch;
+int startSecond;
 unsigned long currentEpoch;
+
+int sampleTotal;
+int currNoSamples;
+int sampleAverage;
+int gasReading;
+String sampleDateTime;
 
 void setup()
 {
@@ -91,36 +97,34 @@ void setup()
     digitalWrite(RED_LED, LOW);
     delay(2000);
     digitalWrite(GREEN_LED, LOW);
-    startEpoch = rtc.getEpoch();
-    while (startEpoch)
 }
 
 void loop()
 {
-    currentEpoch = rtc.getEpoch();
-    while (currentEpoch - startEpoch < sampleInterval) //Wait until interval (30seconds) has passed
+    startSecond = rtc.getSecond();
+    while (startSecond % sampleInterval != 0) //Wait until interval (30seconds) has passed
     {
-        currentEpoch = rtc.getEpoch();
+        delay(100);
+        startSecond = rtc.getSecond();
     }
-    startEpoch = rtc.getEpoch(); //Reset interval
+    sampleDateTime = rtc.getTime("%Y-%m-%dT%H:%M:%SZ");
 
     digitalWrite(RED_LED, HIGH); //Shine red and green of RGB LED while sampling
     digitalWrite(GREEN_LED, HIGH);
-    int gasReading = take10SecondSample();
-    sendReading(gasReading);
+    gasReading = take10SecondSample();
+
+    sendReading(gasReading, sampleDateTime);
 }
 
-void sendReading(int gasAnalogReading)
+void sendReading(int gasAnalogReading, String currentDT)
 {
 
-    String currentDT = rtc.getTime("%Y-%m-%dT%H:%M:%SZ");
-
     String gas_values = "[";
-    gas_values  = gas_values +  "{\"value\":" + gasAnalogReading + ",\"dt\":\"" + currentDT + "\"}";
+    gas_values = gas_values + "{\"value\":" + gasAnalogReading + ",\"dt\":\"" + currentDT + "\"}";
 
     if (stackCounter > 0)
     {
-        for (int i = 0; i <= stackCounter; i++)
+        for (int i = 0; i < stackCounter; i++)
         {
             gas_values = gas_values + ", {\"value\":" + storedValuesStack[i] + ",\"dt\":\"" + storedDTStack[i] + "\"}";
         }
@@ -196,6 +200,7 @@ void clearStorage()
     for (int i = 0; i <= stackCounter; i++)
     {
         storedValuesStack[i] = 0;
+        storedDTStack[i] = "";
     }
     stackCounter = 0;
 }
@@ -213,17 +218,17 @@ void setLocalTime()
 
 int take10SecondSample()
 {
-    Serial.println("taking sample...");    
-    int currNoSamples = 0;
-    int sampleTotal = 0;
+    Serial.println("taking sample...");
+    currNoSamples = 0;
+    sampleTotal = 0;
     while (currNoSamples < sampleNo)
     {
         currNoSamples += 1;
-        int sample = analogRead(GAS_ANALOG);
-        sampleTotal += sample;
-        delay(samplePeriod/sampleNo);
+        sampleTotal += analogRead(GAS_ANALOG);
+        delay(samplePeriod / sampleNo);
     }
-    int average = sampleTotal / sampleNo;
-    Serial.println("Gas reading: " + average);
-    return average;
+    Serial.println(sampleTotal);
+    sampleAverage = sampleTotal / sampleNo;
+    Serial.println("Gas reading: " + sampleAverage);
+    return sampleAverage;
 }
