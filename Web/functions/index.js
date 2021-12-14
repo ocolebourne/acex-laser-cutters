@@ -9,6 +9,9 @@ const jsonwebtoken = require("jsonwebtoken");
 
 const app = express();
 
+app.use(express.json()); // to support JSON-encoded bodies
+app.use(express.urlencoded({ extended: true })); // to support URL-encoded bo
+
 app.get("/api", (req, res) => {
   res.json({ message: "Hello from api!" });
 });
@@ -18,12 +21,12 @@ app.get("/api/occupancy", async (req, res) => {
   res.json({ occupancy: parseInt(dbres.length) });
 });
 
-app.post("/api/tapin", async (req, res) => {
+app.post("/api/tapinnoauth", async (req, res) => {
   //Endpoint for the card scanner, checking if a user has access.
   if (req.body.auth !== process.env.ESP_AUTH) {
     //auth code provided doesn't match
     console.log("Auth incorrect");
-    res.status(401).send("Bad auth");
+    res.status(403).send("Bad auth");
   } else {
     const params = ["card_id", "device_id", "scanner_name"];
     if (!checkParams(res, params, req.body)) {
@@ -35,7 +38,83 @@ app.post("/api/tapin", async (req, res) => {
       const scanner_name = req.body.scanner_name;
       const user = await dbUtils.findDoc("users", {
         //look for user by card_id
-        card_id: parseInt(card_id),
+        card_id: card_id,
+      });
+      const scanner = await dbUtils.findDoc("equipment", {
+        name: scanner_name,
+      });
+      if (scanner.length <= 0) {
+        res.status(404).send("Scanner not found");
+        return;
+      } else {
+        const equip_name = scanner[0].devices[device_id];
+        const equip = await dbUtils.findDoc("equipment", { name: equip_name });
+        if (equip[0].status == 1) {
+          //equipment already turned on
+          console.log("Equipment already on");
+          res.status(406).send("Equipment already on");
+          return;
+        } else {
+          res.json({
+            admit: true,
+            plug_id: equip[0].plug_id,
+            equip_name: equip[0].name,
+          });
+          console.log("Turning on Laser cutter" + equip[0].name);
+          await dbUtils.updateDoc(
+            "equipment",
+            { name: equip[0].name },
+            { status: 1 }
+          );
+          var curr_user = {};
+          if (user.length > 0) {
+            //user found in db
+            console.log("User in db");
+            curr_user = user[0];
+            delete curr_user._id;
+          } else {
+            console.log("User not registered in db");
+            curr_user = { card_id: card_id };
+            curr_user.short_code = "User not in db";
+          }
+          const dt_on = new Date().toISOString();
+          curr_user.equip_name = equip_name;
+          curr_user.dt_on = dt_on;
+          const user_log = {
+            short_code: curr_user.short_code,
+            card_id: card_id,
+            equip_name: equip[0].name,
+            equip_id: equip[0]._id,
+            dt_on: dt_on,
+            dt_off: null,
+          };
+          await dbUtils.addDoc("usage_log", user_log);
+          await dbUtils.addDoc("current_users", curr_user);
+          return;
+        }
+      }
+    }
+  }
+});
+
+app.post("/api/tapin", async (req, res) => {
+  //Endpoint for the card scanner, checking if a user has access.
+  if (req.body.auth !== process.env.ESP_AUTH) {
+    //auth code provided doesn't match
+    console.log("Auth incorrect");
+    res.status(403).send("Bad auth");
+  } else {
+    const params = ["card_id", "device_id", "scanner_name"];
+    if (!checkParams(res, params, req.body)) {
+      //check expected parameters are recieved (preventing errors)
+      return;
+    } else {
+      const card_id = req.body.card_id;
+      const device_id = req.body.device_id;
+      const scanner_name = req.body.scanner_name;
+      const user = await dbUtils.findDoc("users", {
+        //look for user by card_id
+        card_id: card_id,
       });
       const scanner = await dbUtils.findDoc("equipment", {
         name: scanner_name,
@@ -49,15 +128,15 @@ app.post("/api/tapin", async (req, res) => {
         if (user.length <= 0) {
           //user not found in db
           console.log("User not found");
-          res.status(404).send("User not found - access denied");
+          res.status(401).send("User not found - access denied");
           return;
         } else if (equip[0].status == 1) {
           //equipment already turned on
           console.log("Equipment already on");
-          res.status(404).send("Equipment already on");
+          res.status(406).send("Equipment already on");
           return;
         } else {
-          console.log("User found, turning on Laser cutter");
+          console.log("User found, turning on " + equip[0].name);
           res.json({
             admit: true,
             plug_id: equip[0].plug_id,
@@ -76,6 +155,7 @@ app.post("/api/tapin", async (req, res) => {
           curr_user.dt_on = dt_on;
           const user_log = {
             short_code: curr_user.short_code,
+            card_id: card_id,
             equip_name: equip[0].name,
             equip_id: equip[0]._id,
             dt_on: dt_on,
@@ -94,7 +174,7 @@ app.post("/api/turnoff", async (req, res) => {
   if (req.body.auth !== process.env.ESP_AUTH) {
     //auth code provided doesn't match
     console.log("Auth incorrect");
-    res.status(401).send("Bad auth");
+    res.status(403).send("Bad auth");
   } else {
     const params = ["device_id", "scanner_name"];
     if (!checkParams(res, params, req.body)) {
@@ -122,7 +202,10 @@ app.post("/api/turnoff", async (req, res) => {
         if (curr_user.length <= 0) {
           //user not found in db
           console.log("User not found in current users");
-          res.status(404).send("User not found in current users");
+          console.log(
+            `Turning off ${equip_name} anyway - ${equip[0].nickname}`
+          );
+          res.send("User not found in current users"); //res code 200 turn off anyway
           return;
         } else {
           await dbUtils.deleteDoc("current_users", {
@@ -141,6 +224,127 @@ app.post("/api/turnoff", async (req, res) => {
       }
     }
   }
+});
+
+app.post("/api/devicestatus", async (req, res) => {
+  const params = ["scanner_name"];
+  if (!checkParams(res, params, req.body)) {
+    return;
+  } else {
+    const scanner = await dbUtils.findDoc("equipment", {
+      name: req.body.scanner_name,
+    });
+    if (scanner.length <= 0) {
+      res.status(404).send("Scanner not found");
+      return;
+    } else {
+      const devices = await dbUtils.findDoc("equipment", {
+        status: { $exists: true },
+      });
+      var devices_trans = {};
+      await devices.forEach((device) => {
+        devices_trans[device.name] = {
+          nickname: device.nickname,
+          status: device.status,
+        };
+      });
+      var resArray = [];
+      const scanner_devices = scanner[0].devices;
+      await scanner_devices.forEach((device_name, index) => {
+        resArray.push({
+          index: index,
+          name: device_name,
+          nickname: devices_trans[device_name].nickname,
+          status: devices_trans[device_name].status,
+        });
+      });
+      res.json(resArray);
+    }
+  }
+});
+
+app.get("/api/getdevicestatuses", async (req, res) => {
+  //for main public dashboard
+  const devices = await dbUtils.findDoc("equipment", {
+    status: { $exists: true },
+  });
+  var resArray = [];
+  await devices.forEach((device, index) => {
+    resArray.push({
+      index: index,
+      name: device.name,
+      nickname: device.nickname,
+      status: device.status,
+    });
+  });
+  res.json(resArray);
+});
+
+app.get("/api/getchart1data", async (req, res) => {
+  //for main public dashboard
+  const usage = await dbUtils.findDoc("usage_log", {});
+  const gas_reports = await dbUtils.findDoc("gas_readings", {});
+  const scanner_equip = await dbUtils.findDoc("equipment", {
+    name: "scanner1",
+  });
+
+  const scanner = scanner_equip[0];
+
+  var gasData = [];
+  var cutter0Data = [];
+  var cutter1Data = [];
+
+  var dt_on; //temp variables
+  var dt_off;
+  var dt_on_plus1;
+  var dt_off_plus1;
+
+  var tempData;
+
+  await usage.forEach((log) => {
+    dt_on = new Date(log.dt_on);
+    dt_off = new Date(log.dt_on);
+    dt_on_plus1 = new Date(dt_on.getTime() + 1000);
+    dt_off_plus1 = new Date(dt_off.getTime() + 1000);
+    tempData = [
+      {
+        dt: dt_on.getTime(),
+        status: 0,
+      },
+      {
+        dt: dt_on_plus1.getTime(),
+        status: 1,
+      },
+      {
+        dt: dt_off.getTime(),
+        status: 1,
+      },
+      {
+        dt: dt_off_plus1.getTime(),
+        status: 0,
+      },
+    ];
+    if (log.equip_name == scanner.devices[0]) {
+      cutter0Data.push(...tempData);
+    } else if (log.equip_name == scanner.devices[1]) {
+      cutter1Data.push(...tempData);
+    }
+  });
+  
+  var gas_dt; //temp variable
+  await gas_reports.forEach((report) => {
+    gas_dt = new Date(report.dt);
+    gasData.push({dt: gas_dt.getTime(), value: report.value});
+  });
+
+  var resArray = [];
+  resArray = {
+    gas: gasData,
+    cutter0: cutter0Data,
+    cutter1: cutter1Data,
+  };
+
+  res.json(resArray);
 });
 
 // app.post("/api/turnoff", async (req, res) => { //post boiler plate
@@ -162,14 +366,15 @@ app.post("/api/gasreport", async (req, res) => {
   if (req.body.auth !== process.env.ESP_AUTH) {
     //auth code provided doesn't match
     console.log("Auth incorrect");
-    res.status(401).send("Bad auth");
+    console.log(req.body.auth);
+    res.status(403).send("Bad auth");
   } else {
-    const params = ["values", "scanner_name"];
+    const params = ["values", "sensor_id"];
     if (!checkParams(res, params, req.body)) {
       return;
     } else {
-      const values = JSON.parse(req.body.values);
-      await dbUtils.addManyDocs("usage_log", values);
+      const values = req.body.values;
+      await dbUtils.addManyDocs("gas_readings", values);
       res.send("Success");
     }
   }
@@ -231,7 +436,7 @@ app.post("/api/adduser", middle.authenticateToken, async (req, res) => {
     console.log(req.body);
     await dbUtils.addDoc("users", {
       short_code: req.body.short_code,
-      card_id: parseInt(req.body.card_id),
+      card_id: req.body.card_id,
       dt_added: new Date().toISOString(),
     });
     res.send("Success");
