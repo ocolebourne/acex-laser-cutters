@@ -282,8 +282,14 @@ app.get("/api/getdevicestatuses", async (req, res) => {
 
 app.get("/api/getchart1data", async (req, res) => {
   //for main public dashboard
-  const usage = await dbUtils.findDoc("usage_log", {});
-  const gas_reports = await dbUtils.findDoc("gas_readings", {});
+  const startDate = new Date(req.query.start);
+  const endDate = new Date(req.query.end);
+  const usage = await dbUtils.findDoc("usage_log", {
+    dt_on: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
+  });
+  const gas_reports = await dbUtils.findDoc("gas_readings", {
+    dt: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
+  });
   const scanner_equip = await dbUtils.findDoc("equipment", {
     name: "scanner1",
   });
@@ -303,7 +309,7 @@ app.get("/api/getchart1data", async (req, res) => {
 
   await usage.forEach((log) => {
     dt_on = new Date(log.dt_on);
-    dt_off = new Date(log.dt_on);
+    dt_off = new Date(log.dt_off);
     dt_on_plus1 = new Date(dt_on.getTime() + 1000);
     dt_off_plus1 = new Date(dt_off.getTime() + 1000);
     tempData = [
@@ -330,11 +336,18 @@ app.get("/api/getchart1data", async (req, res) => {
       cutter1Data.push(...tempData);
     }
   });
-  
+
   var gas_dt; //temp variable
+  const resolution = 6;
+  var counter = 5;
   await gas_reports.forEach((report) => {
-    gas_dt = new Date(report.dt);
-    gasData.push({dt: gas_dt.getTime(), value: report.value});
+    if (counter == resolution) {
+      gas_dt = new Date(report.dt);
+      gasData.push({ dt: gas_dt.getTime(), value: report.value });
+      counter = 0;
+    } else {
+      counter += 1;
+    }
   });
 
   var resArray = [];
@@ -347,20 +360,183 @@ app.get("/api/getchart1data", async (req, res) => {
   res.json(resArray);
 });
 
-// app.post("/api/turnoff", async (req, res) => { //post boiler plate
-//   if (req.body.auth !== process.env.ESP_AUTH) {
-//     //auth code provided doesn't match
-//     console.log("Auth incorrect");
-//     res.status(401).send("Bad auth");
-//   } else {
-//     const params = ["device_id", "scanner_name"];
-//     if (!checkParams(res, params, req.body)) {
-//       return;
-//     } else {
+app.get("/api/getchart2data", async (req, res) => {
+  //for main public dashboard
+  const date = new Date(req.query.date);
 
-//     }
-//   }
-// });
+  const startDate = new Date(date.setHours(8));
+  const endDate = new Date(date.setHours(18));
+
+  const usage = await dbUtils.findDoc("usage_log", {
+    dt_on: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
+  });
+  const gas_reports = await dbUtils.findDoc("gas_readings", {
+    dt: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
+  });
+  const scanner_equip = await dbUtils.findDoc("equipment", {
+    name: "scanner1",
+  });
+
+  const scanner = scanner_equip[0];
+
+  var gasData = [];
+  var cutter0Data = [];
+  var cutter1Data = [];
+
+  var dt_on; //temp variables
+  var dt_off;
+  var dt_on_plus1;
+  var dt_off_plus1;
+  var on_value;
+
+  var tempData;
+
+  await usage.forEach((log) => {
+    if (log.equip_name == scanner.devices[0]) {
+      on_value = 1;
+    } else {
+      on_value = 0.99;
+    }
+    dt_on = new Date(log.dt_on);
+    dt_on_plus1 = new Date(dt_on.getTime() + 1000);
+    tempData = [
+      {
+        dt: dt_on.getTime(),
+        status: 0,
+      },
+      {
+        dt: dt_on_plus1.getTime(),
+        status: on_value,
+      },
+    ];
+    if (log.dt_off) {
+      dt_off = new Date(log.dt_off);
+      dt_off_plus1 = new Date(dt_off.getTime() + 1000);
+      tempData.push(
+        {
+          dt: dt_off.getTime(),
+          status: on_value,
+        },
+        {
+          dt: dt_off_plus1.getTime(),
+          status: 0,
+        }
+      );
+    } else {
+      //dt_off is null so cutter still in use
+    }
+    if (log.equip_name == scanner.devices[0]) {
+      cutter0Data.push(...tempData);
+    } else if (log.equip_name == scanner.devices[1]) {
+      cutter1Data.push(...tempData);
+    }
+  });
+
+  var gas_dt; //temp variable
+  const resolution = 6;
+  var counter = 6;
+  await gas_reports.forEach((report) => {
+    if (counter == resolution) {
+      gas_dt = new Date(report.dt);
+      gasData.push({ dt: gas_dt.getTime(), value: report.value });
+      counter = 0;
+    } else {
+      counter += 1;
+    }
+  });
+
+  var resArray = [];
+  resArray = {
+    gas: gasData,
+    cutter0: cutter0Data,
+    cutter1: cutter1Data,
+  };
+
+  res.json(resArray);
+});
+
+app.get("/api/getworkshopstats", async (req, res) => {
+  //for main public dashboard
+  const datetime = new Date();
+  const oneHourAgo = new Date(datetime.getTime() - 1000 * 60 * 60);
+  const startOfDay = new Date(datetime.setHours(8, 0, 0, 0));
+
+  const gas_reports = await dbUtils.findDoc("gas_readings", {
+    dt: { $gte: startOfDay.toISOString() },
+  });
+  const gas_reports_hour = await dbUtils.findDoc("gas_readings", {
+    dt: { $gte: oneHourAgo.toISOString() },
+  });
+  const usage = await dbUtils.findDoc("usage_log", {
+    dt_on: { $gte: startOfDay.toISOString() },
+  });
+
+  const usersToday = usage.length; //number of usage logs since workshop opening OR 0 if before start of day
+
+  var time_used = 0;
+  var timeUsedToday = 0;
+  usage.forEach((use) => {
+    //for each usage log add the time in-use to total for the day. If before workshop opens / no usage stays 0
+    if (use.dt_off) {
+      time_used =
+        new Date(use.dt_off).getTime() - new Date(use.dt_on).getTime();
+    } else {
+      time_used = new Date().getTime() - new Date(use.dt_on).getTime();
+    }
+    timeUsedToday += time_used;
+  });
+
+  var gas_total = 0;
+  var counter = 0;
+
+  gas_reports_hour.forEach((report) => {
+    //sum all gas readings from last hour
+    gas_total = gas_total + report.value;
+    counter += 1;
+  });
+  const lastHourAverage = (gas_total / counter).toFixed(2); //find las hours gas reading average
+  const [lastGasReading] = gas_reports_hour.slice(-1); //extract final reading, i.e. last reading
+  const lastGasReadingValue = lastGasReading.value;
+  const lastGasReadingDt = lastGasReading.dt;
+
+  var total = 0;
+  if (gas_reports.length > 60) {
+    gas_reports.slice(0, 60).forEach((report) => {
+      //sum the first 60 gas readings, i.e. the first 30minutes of the day from 8:00AM
+      total += report.value;
+    });
+  }
+  morningThreshold = ((total / 60) * 1.1).toFixed(2); //average from half an hour before lab was open, plus 10% buffer
+
+  var isAboveMorning;
+  if (lastGasReadingValue > morningThreshold) { //is the current gas value above this mornings threshold?
+    isAboveMorning = 1;
+  } else {
+    isAboveMorning = 0;
+  }
+
+  const dangerThreshold = 300;
+  var isDangerous;
+  if (lastGasReadingValue > dangerThreshold) { //is the current gas value outside of the normal use maximum threshold?
+    isDangerous = 1;
+  } else {
+    isDangerous = 0;
+  }
+
+  var resArray = [];
+  resArray = {
+    lastHourAverage: lastHourAverage,
+    lastGasReadingValue: lastGasReadingValue,
+    lastGasReadingDt: lastGasReadingDt,
+    usersToday: usersToday,
+    timeUsed: timeUsedToday,
+    morningThreshold: morningThreshold,
+    isDangerous: isDangerous,
+    isAboveMorning: isAboveMorning,
+  };
+
+  res.json(resArray);
+});
 
 app.post("/api/gasreport", async (req, res) => {
   if (req.body.auth !== process.env.ESP_AUTH) {

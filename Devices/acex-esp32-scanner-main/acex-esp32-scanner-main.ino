@@ -584,7 +584,7 @@ void turnOff()
     }
 }
 
-bool updateDeviceStatus()
+bool updateDeviceStatus() //Sync function
 {
     if (WiFi.status() == WL_CONNECTED)
     {
