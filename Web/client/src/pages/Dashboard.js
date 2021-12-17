@@ -25,13 +25,30 @@ import {
   Overlay,
   Tooltip as BSTooltip,
   Alert,
+  Spinner,
 } from "react-bootstrap";
 
 import { Chart1, Chart2 } from "../components/Charts";
 
+function LoadingSpinner(props) {
+  return (
+    <>
+      {props.showSpinner ? (
+        <div className="loading-spinner">
+          <Image className="loading-icon" fluid src="./logo512.png" alt=" " />
+          <Spinner animation="border" />
+        </div>
+      ) : (
+        <></>
+      )}
+    </>
+  );
+}
+
 function Dashboard(props) {
   const [deviceList, setDeviceList] = React.useState([]);
   const [workshopStats, setWorkshopStats] = React.useState({});
+  const [loading, setLoading] = React.useState(true);
 
   function updateWorkshopStats() {
     const requestOptions = {
@@ -54,16 +71,16 @@ function Dashboard(props) {
         setWorkshopStats(workshopStats);
       })
       .catch((error) => {
-        setWorkshopStats({
-          lastHourAverage: "27.79",
-          lastGasReadingValue: 26,
-          lastGasReadingDt: "2021-12-16T18:46:30Z",
-          usersToday: 1,
-          timeUsed: 770590,
-          morningThreshold: "31.11",
-          isDangerous: 0,
-          isAboveMorning: 0,
-        });
+        // setWorkshopStats({
+        //   lastHourAverage: "27.79",
+        //   lastGasReadingValue: 26,
+        //   lastGasReadingDt: "2021-12-16T18:46:30Z",
+        //   usersToday: 1,
+        //   timeUsed: 770590,
+        //   morningThreshold: "31.11",
+        //   isDangerous: 0,
+        //   isAboveMorning: 0,
+        // });
         console.log(error.message);
       });
   }
@@ -87,22 +104,24 @@ function Dashboard(props) {
       .then((devices) => {
         console.log(devices);
         setDeviceList(devices);
+        setTimeout(()=>{setLoading(false)},2000);
       })
       .catch((error) => {
-        setDeviceList([
-          {
-            index: 0,
-            name: "abc3.50",
-            nickname: "Left Laser Cutter",
-            status: 1,
-          },
-          {
-            index: 1,
-            name: "def4.60",
-            nickname: "Right Laser Cutter",
-            status: 0,
-          },
-        ]);
+        // setDeviceList([
+        //   {
+        //     index: 0,
+        //     name: "abc3.50",
+        //     nickname: "Left Laser Cutter",
+        //     status: 1,
+        //   },
+        //   {
+        //     index: 1,
+        //     name: "def4.60",
+        //     nickname: "Right Laser Cutter",
+        //     status: 0,
+        //   },
+        // ]);
+        // setTimeout(()=>{setLoading(false)},2000);
         console.log(error.message);
       });
   }
@@ -121,6 +140,7 @@ function Dashboard(props) {
 
   return (
     <div id="home">
+      <LoadingSpinner showSpinner={loading}/>
       <Navbar bg="dark" variant="dark" expand="lg" fixed="top">
         <Container>
           <Navbar.Brand href="">AceX Workshop</Navbar.Brand>
@@ -207,7 +227,7 @@ function Dashboard(props) {
                 src="./warning-icon.png"
                 alt=" "
               />
-              <h3>Start of day threshold: {workshopStats.morningThreshold}</h3>
+              <h3>Today's baseline: {workshopStats.morningThreshold}</h3>
               <h3>
                 Relative gas level:{" "}
                 {workshopStats.isDangerous ? (
