@@ -17,12 +17,14 @@ app.get("/api", (req, res) => {
 });
 
 app.get("/api/occupancy", async (req, res) => {
+  //Endpoint for getting current occupancy based on current_users (unused)
   const dbres = await dbUtils.findDoc("current_users", {});
   res.json({ occupancy: parseInt(dbres.length) });
 });
 
+//Power controller endpoints
 app.post("/api/tapinnoauth", async (req, res) => {
-  //Endpoint for the card scanner, checking if a user has access.
+  //Endpoint for the card scanner, temporary - allow any user but still log their usage
   if (req.body.auth !== process.env.ESP_AUTH) {
     //auth code provided doesn't match
     console.log("Auth incorrect");
@@ -98,7 +100,7 @@ app.post("/api/tapinnoauth", async (req, res) => {
 });
 
 app.post("/api/tapin", async (req, res) => {
-  //Endpoint for the card scanner, checking if a user has access.
+  //Endpoint for the card scanner, checking if a user has access then returning 200 if they do
   if (req.body.auth !== process.env.ESP_AUTH) {
     //auth code provided doesn't match
     console.log("Auth incorrect");
@@ -171,6 +173,7 @@ app.post("/api/tapin", async (req, res) => {
 });
 
 app.post("/api/turnoff", async (req, res) => {
+  //Endpoint for the card scanner, turning off a piece of equipment
   if (req.body.auth !== process.env.ESP_AUTH) {
     //auth code provided doesn't match
     console.log("Auth incorrect");
@@ -227,6 +230,7 @@ app.post("/api/turnoff", async (req, res) => {
 });
 
 app.post("/api/devicestatus", async (req, res) => {
+  //Endpoint for the card scanner resync function
   const params = ["scanner_name"];
   if (!checkParams(res, params, req.body)) {
     return;
@@ -263,8 +267,9 @@ app.post("/api/devicestatus", async (req, res) => {
   }
 });
 
+//User frontend endpoints
 app.get("/api/getdevicestatuses", async (req, res) => {
-  //for main public dashboard
+  //get device statuses for dashboard 
   const devices = await dbUtils.findDoc("equipment", {
     status: { $exists: true },
   });
@@ -281,7 +286,7 @@ app.get("/api/getdevicestatuses", async (req, res) => {
 });
 
 app.get("/api/getchart1data", async (req, res) => {
-  //for main public dashboard
+  //get data for chart 1 - usage vs gas on longer time frame
   const startDate = new Date(req.query.start);
   const endDate = new Date(req.query.end);
   const usage = await dbUtils.findDoc("usage_log", {
@@ -361,7 +366,7 @@ app.get("/api/getchart1data", async (req, res) => {
 });
 
 app.get("/api/getchart2data", async (req, res) => {
-  //for main public dashboard
+  //get data for chart 2 - usage vs gas on daily timeframe
   const date = new Date(req.query.date);
 
   const startDate = new Date(date.setHours(8));
@@ -456,7 +461,7 @@ app.get("/api/getchart2data", async (req, res) => {
 });
 
 app.get("/api/getworkshopstats", async (req, res) => {
-  //for main public dashboard
+  //Get live analytics for user dashboard
   const datetime = new Date();
   const oneHourAgo = new Date(datetime.getTime() - 1000 * 60 * 60);
   const startOfDay = new Date(datetime.setHours(8, 0, 0, 0));
@@ -538,6 +543,7 @@ app.get("/api/getworkshopstats", async (req, res) => {
   res.json(resArray);
 });
 
+//Gas module endpoints
 app.post("/api/gasreport", async (req, res) => {
   if (req.body.auth !== process.env.ESP_AUTH) {
     //auth code provided doesn't match
@@ -556,7 +562,9 @@ app.post("/api/gasreport", async (req, res) => {
   }
 });
 
+//Admin dashboard endpoints
 app.post("/api/changepass", async (req, res) => {
+  //endpoint to change admin password
   const params = ["new_password", "old_password"];
   if (!checkParams(res, params, req.body)) {
     return;
@@ -582,6 +590,7 @@ app.post("/api/changepass", async (req, res) => {
 });
 
 app.post("/api/login", async (req, res) => {
+  //endpoint to compare password with one in database and allow / deny admin access - return JWT
   const params = ["password"];
   if (!checkParams(res, params, req.body)) {
     return;
@@ -605,6 +614,7 @@ app.post("/api/login", async (req, res) => {
 });
 
 app.post("/api/adduser", middle.authenticateToken, async (req, res) => {
+  //endpoint to add user to database
   const params = ["short_code", "card_id"];
   if (!checkParams(res, params, req.body)) {
     return;
@@ -620,6 +630,7 @@ app.post("/api/adduser", middle.authenticateToken, async (req, res) => {
 });
 
 app.post("/api/deluser", middle.authenticateToken, async (req, res) => {
+  //endpoint to remove user from database
   var delQuery = {};
   if (req.body.short_code) {
     delQuery = { short_code: req.body.short_code };
