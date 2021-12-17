@@ -1,3 +1,5 @@
+//Main file for power controller module, deployed in ACEx
+
 //Wifi
 #include "esp_wpa2.h"
 #include <WiFi.h>
@@ -7,7 +9,6 @@
 
 const char *ssid = SSID;
 String api_host = "https://acex-iot.web.app/api/";
-// String api_host = "http://f123-92-40-177-162.ngrok.io/api/";
 String scanner_name = "scanner1";
 
 //String tapin_endpoint = "tapin";
@@ -76,7 +77,7 @@ unsigned long currentMillis = 0;
 unsigned long timeout = 30000;
 unsigned long wifiTimeout = 10000;
 
-void displayMessage(String option, String detail = "", int number = 0)
+void displayMessage(String option, String detail = "", int number = 0) //function to display one of set messages on OLED screen
 {
     u8g2.clearBuffer();
     if (option == "scan_card")
@@ -328,7 +329,7 @@ unsigned long getID()
     return hex_num;
 }
 
-int buttonWait()
+int buttonWait() //wait for either button to be pressed
 {
     int button0State = 0;
     int button1State = 0;
@@ -675,14 +676,13 @@ void reconnectWifi()
     while (WiFi.status() != WL_CONNECTED)
     {
         currentMillis = millis();
-        if (currentMillis - startMillis > wifiTimeout)
+        if (currentMillis - startMillis > wifiTimeout) //reconnection timeout - if till can't reconnect then restart whole ESP - last resort
         {
             displayMessage("restarting");
             delay(500);
             ESP.restart();
         }
         delay(500);
-        // do something on the screen
         Serial.print(".");
     }
     Serial.println("");

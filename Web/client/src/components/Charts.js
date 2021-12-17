@@ -1,3 +1,5 @@
+//File containing user frontend chart components
+
 import React from "react";
 
 import {
@@ -32,10 +34,8 @@ import {
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-function Chart1(props) {
-  const [timeSinceUpdate, setTimeSinceUpdate] = React.useState(0);
+function Chart1(props) { //Chart 1 usage vs gas on a longer time frame
   const [data, setData] = React.useState({});
-  const target = React.useRef(null);
 
   const [dateRange, setDateRange] = React.useState([
     new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
@@ -52,7 +52,7 @@ function Chart1(props) {
 
   async function handleDateChange() {
     setShowPeriodError(false);
-    if (endDate.getTime() - startDate.getTime() > maxPeriod) {
+    if (endDate.getTime() - startDate.getTime() > maxPeriod) { //upon date range select check and correct if over 7 days
       console.log("7 days max");
       setShowPeriodError(true);
       await setDateRange([
@@ -78,7 +78,7 @@ function Chart1(props) {
       start: startDate,
       end: endDate,
     };
-    fetch(`/api/getchart1data?` + new URLSearchParams(params), requestOptions)
+    fetch(`/api/getchart1data?` + new URLSearchParams(params), requestOptions) //get request with start and end date
       .then((response) => {
         if (response.ok) {
           return response.json();
@@ -93,34 +93,34 @@ function Chart1(props) {
       })
       .catch((error) => {
         console.log(error);
-        setData({
-          gas: [
-            { value: 14, dt: 1503617297689 },
-            { value: 15, dt: 1503616962277 },
-            { value: 15, dt: 1503616882654 },
-            { value: 20, dt: 1503613184594 },
-            { value: 15, dt: 1503611308914 },
-          ],
-          cutter0: [
-            { status: 1, dt: 1503617247689 },
-            { status: 0, dt: 1503617248689 },
-            { status: 0, dt: 1503616965277 },
-            { status: 1, dt: 1503616966277 },
-            { status: 1, dt: 1503616882254 },
-            { status: 0, dt: 1503616883254 },
-            { status: 0, dt: 1503613133594 },
-            { status: 1, dt: 1503613134594 },
-            { status: 1, dt: 1503611304914 },
-            { status: 0, dt: 1503611305914 },
-          ],
-          cutter1: [
-            { status: 1, dt: 1503617247389 },
-            { status: 1, dt: 1503616965477 },
-            { status: 0, dt: 1503616882454 },
-            { status: 1, dt: 1503613133594 },
-            { status: 1, dt: 1503611305414 },
-          ],
-        });
+        // setData({ //for testing w/o api
+        //   gas: [
+        //     { value: 14, dt: 1503617297689 },
+        //     { value: 15, dt: 1503616962277 },
+        //     { value: 15, dt: 1503616882654 },
+        //     { value: 20, dt: 1503613184594 },
+        //     { value: 15, dt: 1503611308914 },
+        //   ],
+        //   cutter0: [
+        //     { status: 1, dt: 1503617247689 },
+        //     { status: 0, dt: 1503617248689 },
+        //     { status: 0, dt: 1503616965277 },
+        //     { status: 1, dt: 1503616966277 },
+        //     { status: 1, dt: 1503616882254 },
+        //     { status: 0, dt: 1503616883254 },
+        //     { status: 0, dt: 1503613133594 },
+        //     { status: 1, dt: 1503613134594 },
+        //     { status: 1, dt: 1503611304914 },
+        //     { status: 0, dt: 1503611305914 },
+        //   ],
+        //   cutter1: [
+        //     { status: 1, dt: 1503617247389 },
+        //     { status: 1, dt: 1503616965477 },
+        //     { status: 0, dt: 1503616882454 },
+        //     { status: 1, dt: 1503613133594 },
+        //     { status: 1, dt: 1503611305414 },
+        //   ],
+        // });
       });
   }
 
@@ -159,7 +159,7 @@ function Chart1(props) {
               }}
             />
             <Tooltip
-              formatter={(value) => {
+              formatter={(value) => { //format tooltip to show date time in iso string, and usage data a in use/available
                 if (value > 1000000) {
                   return new Date(value).toLocaleString();
                 } else if (value == 1) {
@@ -283,7 +283,7 @@ function Chart2(props) {
   const [show460, setShow460] = React.useState(true);
   const [showGas, setShowGas] = React.useState(true);
 
-  function handleDateChange(direction) {
+  function handleDateChange(direction) { //handle next/prev day buttons
     const newDate = new Date(
       new Date(selectedDate).getTime() + direction * dayInMilli
     ).toISOString();
@@ -306,7 +306,7 @@ function Chart2(props) {
       date: new Date(day),
     };
     console.log(params);
-    fetch(`/api/getchart2data?` + new URLSearchParams(params), requestOptions)
+    fetch(`/api/getchart2data?` + new URLSearchParams(params), requestOptions) //GET request for chart 2 data on selected day
       .then((response) => {
         if (response.ok) {
           return response.json();
@@ -321,34 +321,34 @@ function Chart2(props) {
       })
       .catch((error) => {
         console.log(error);
-        setData({
-          gas: [
-            { value: 14, dt: 1503617297689 },
-            { value: 15, dt: 1503616962277 },
-            { value: 15, dt: 1503616882654 },
-            { value: 20, dt: 1503613184594 },
-            { value: 15, dt: 1503611308914 },
-          ],
-          cutter0: [
-            { status: 1, dt: 1503617247689 },
-            { status: 0, dt: 1503617248689 },
-            { status: 0, dt: 1503616965277 },
-            { status: 1, dt: 1503616966277 },
-            { status: 1, dt: 1503616882254 },
-            { status: 0, dt: 1503616883254 },
-            { status: 0, dt: 1503613133594 },
-            { status: 1, dt: 1503613134594 },
-            { status: 1, dt: 1503611304914 },
-            { status: 0, dt: 1503611305914 },
-          ],
-          cutter1: [
-            { status: 1, dt: 1503617247389 },
-            { status: 1, dt: 1503616965477 },
-            { status: 0, dt: 1503616882454 },
-            { status: 1, dt: 1503613133594 },
-            { status: 1, dt: 1503611305414 },
-          ],
-        });
+        // setData({ //for testing w/o api
+        //   gas: [
+        //     { value: 14, dt: 1503617297689 },
+        //     { value: 15, dt: 1503616962277 },
+        //     { value: 15, dt: 1503616882654 },
+        //     { value: 20, dt: 1503613184594 },
+        //     { value: 15, dt: 1503611308914 },
+        //   ],
+        //   cutter0: [
+        //     { status: 1, dt: 1503617247689 },
+        //     { status: 0, dt: 1503617248689 },
+        //     { status: 0, dt: 1503616965277 },
+        //     { status: 1, dt: 1503616966277 },
+        //     { status: 1, dt: 1503616882254 },
+        //     { status: 0, dt: 1503616883254 },
+        //     { status: 0, dt: 1503613133594 },
+        //     { status: 1, dt: 1503613134594 },
+        //     { status: 1, dt: 1503611304914 },
+        //     { status: 0, dt: 1503611305914 },
+        //   ],
+        //   cutter1: [
+        //     { status: 1, dt: 1503617247389 },
+        //     { status: 1, dt: 1503616965477 },
+        //     { status: 0, dt: 1503616882454 },
+        //     { status: 1, dt: 1503613133594 },
+        //     { status: 1, dt: 1503611305414 },
+        //   ],
+        // });
       });
   }
 
@@ -387,7 +387,7 @@ function Chart2(props) {
               }}
             />
             <Tooltip
-              formatter={(value) => {
+              formatter={(value) => { //format tooltip to show date time in iso string, and usage data a in use/available
                 if (value > 1000000) {
                   return new Date(value).toLocaleString();
                 } else if (value == (1 || 0.99)) {

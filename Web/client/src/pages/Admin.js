@@ -1,3 +1,5 @@
+//Main file for the admin frontend panel
+
 import React from "react";
 import { useCookies } from "react-cookie";
 
@@ -15,7 +17,7 @@ import {
   Spinner,
 } from "react-bootstrap";
 
-// function templateModal(props) {
+// function templateModal(props) { //boiler plate for an admin function
 //   const [readOnly, setReadOnly] = React.useState(false);
 //   const [loadingSpinner, setLoadingSpinner] = React.useState(false);
 
@@ -63,9 +65,7 @@ import {
 //   );
 // }
 
-//function CheckUserModal
-
-function DeleteUserModal(props) {
+function DeleteUserModal(props) { //delete user function / modal
   const [readOnly, setReadOnly] = React.useState(false);
   const [cardID, setCardID] = React.useState("");
   const [scannerEnabled, setScannerEnabled] = React.useState(false);
@@ -79,7 +79,7 @@ function DeleteUserModal(props) {
   const cardIdInput = React.useRef();
   const shortCode = React.useRef();
 
-  const handleKeyPress = (event) => {
+  const handleKeyPress = (event) => { 
     resetModal();
     if (event.key === "Enter") {
       if (scannerEnabled) {
@@ -89,7 +89,7 @@ function DeleteUserModal(props) {
         if (cardIdInput.current.value.length === 10) {
           //if input data length 10, run finduser
           console.log("here");
-          const currCardId = cardIdInput.current.value;
+          const currCardId = cardIdInput.current.value; //update displayed card id field with data from hidden one
           setCardID(currCardId);
         }
       } else {
@@ -111,7 +111,7 @@ function DeleteUserModal(props) {
     const shortC = shortCode.current.value;
     const card = cardIdInput.current.value;
     if (!shortC && !card) {
-      setFieldErrorMsg("Please enter valid user details");
+      setFieldErrorMsg("Please enter valid user details"); //if fields empty show error
       setShortCodeInvalid(true);
       setCardIDInvalid(true);
     } else {
@@ -132,7 +132,7 @@ function DeleteUserModal(props) {
           short_code: shortC,
         });
       }
-      fetch("/api/delUser", requestOptions)
+      fetch("/api/delUser", requestOptions) //POST request
         .then((response) => {
           if (response.ok) {
             setLoadingSpinner(false);
@@ -294,7 +294,7 @@ function ChangePasswordModal(props) {
       },
       body: JSON.stringify({ old_password: oldPass, new_password: newPass }),
     };
-    fetch("/api/changepass", requestOptions)
+    fetch("/api/changepass", requestOptions) //POST request
       .then((response) => {
         if (response.ok) {
           setLoadingSpinner(false);
@@ -546,7 +546,7 @@ function AddUserModal(props) {
   const cardIdInput = React.useRef();
   const shortCode = React.useRef();
 
-  const handleKeyPress = (event) => {
+  const handleKeyPress = (event) => { //for hidden input
     resetModal();
     if (event.key === "Enter") {
       if (scannerEnabled) {
@@ -556,7 +556,7 @@ function AddUserModal(props) {
         if (cardIdInput.current.value.length === 10) {
           //if input data length 10, run finduser
           console.log("here");
-          const currCardId = cardIdInput.current.value;
+          const currCardId = cardIdInput.current.value; //if 10 digit card id entered into hidden field then update displayed value 
           setCardID(currCardId);
         }
       } else {
@@ -700,6 +700,7 @@ function AddUserModal(props) {
 }
 
 function AdminModalFooter(props) {
+  //footer for all modals with error messaging and loading spinner
   return (
     <Modal.Footer>
       {props.loadingSpinner ? (
@@ -739,10 +740,10 @@ function AdminModalFooter(props) {
 }
 
 function Admin(props) {
+  //main admin panel component
   const [addUserModalShow, setAddUserModalShow] = React.useState(false);
   const [delUserModalShow, setDelUserModalShow] = React.useState(false);
   const [changePassModalShow, setChangePassModalShow] = React.useState(false);
-  // const [checkUserModalShow, setCheckUserModalShow] = React.useState(false);
   const [loggedIn, setLoggedIn] = React.useState(false);
   const [loginReadOnly, setLoginReadOnly] = React.useState(false);
   const [passwordError, setPasswordError] = React.useState(false);
@@ -752,7 +753,7 @@ function Admin(props) {
 
   const loginPassword = React.useRef();
 
-  function onLoginButton() {
+  function onLoginButton() { //handles when password has been entered
     const password = loginPassword.current.value;
     setShowPasswordSpinner(true);
     setLoginReadOnly(true);
@@ -761,7 +762,7 @@ function Admin(props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: password }),
     };
-    fetch("/api/login", requestOptions)
+    fetch("/api/login", requestOptions) //POST request the login endpoint with the entered password
       .then((response) => response.json())
       .then((data) => {
         setShowPasswordSpinner(false);
@@ -773,30 +774,32 @@ function Admin(props) {
         console.log(error);
         setShowPasswordSpinner(false);
         setLoginReadOnly(false);
-        setPasswordError(true);
+        setPasswordError(true); //show password error
         setPasswordErrorMessage("Incorrect password, try again");
       });
   }
 
-  function onLogoutButton() {
+  function onLogoutButton() { //logout, remove session storage JWT and show login page
     sessionStorage.removeItem("token");
     setLoggedIn(false);
   }
 
-  function onKickedOut() {
+  function onKickedOut() { //same as logout but with kicked message
     sessionStorage.removeItem("token");
     setLoggedIn(false);
     setShowKickedMessage(true);
   }
 
-  function handleLoginEnter(event) {
+  function handleLoginEnter(event) { //handle enter button in log in field
     setPasswordError(false);
     if (event.key === "Enter") {
       onLoginButton();
     }
   }
 
-  React.useEffect(() => {
+  React.useEffect(() => { //on page load check if user has stored token - log them in if they do. 
+    //If the token has expired they'll be kicked when trying to do anything
+    //Would be good to add a token expiry check here in future
     if (sessionStorage.getItem("token")) {
       setLoggedIn(true);
     }
@@ -858,11 +861,6 @@ function Admin(props) {
             onHide={() => setChangePassModalShow(false)}
             kick={() => onKickedOut()}
           />
-          {/* <CheckUserModal
-            show={checkUserModalShow}
-            onHide={() => setCheckUserModalShow(false)}
-            kick={() => onKickedOut()}
-          /> */}
         </Container>
       ) : (
         <Container>

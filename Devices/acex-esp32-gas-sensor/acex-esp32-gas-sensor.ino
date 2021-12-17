@@ -1,3 +1,5 @@
+//Main file for gas sensor module, deployed in ACEx
+
 //Wifi
 #include "esp_wpa2.h"
 #include <WiFi.h>
@@ -91,7 +93,7 @@ void setup()
 
     //Time setup
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    setLocalTime();
+    setLocalTime(); //set local offline clock
 
     digitalWrite(GREEN_LED, HIGH); //Show green LED for 2 seconds once connected
     digitalWrite(RED_LED, LOW);
@@ -101,28 +103,28 @@ void setup()
 
 void loop()
 {
-    startSecond = rtc.getSecond();
-    while (startSecond % sampleInterval != 0) //Wait until interval (30seconds) has passed
+    startSecond = rtc.getSecond(); //get current seconds from local clock
+    while (startSecond % sampleInterval != 0) //Wait until sample period has passed, ie current seconds is either 0 or 30
     {
         delay(100);
-        startSecond = rtc.getSecond();
+        startSecond = rtc.getSecond(); //update current seconds
     }
     sampleDateTime = rtc.getTime("%Y-%m-%dT%H:%M:%SZ");
 
     digitalWrite(RED_LED, HIGH); //Shine red and green of RGB LED while sampling
     digitalWrite(GREEN_LED, HIGH);
-    gasReading = take10SecondSample();
+    gasReading = take10SecondSample(); //take sample
 
-    sendReading(gasReading, sampleDateTime);
+    sendReading(gasReading, sampleDateTime); //POST request reading
 }
 
 void sendReading(int gasAnalogReading, String currentDT)
 {
 
     String gas_values = "[";
-    gas_values = gas_values + "{\"value\":" + gasAnalogReading + ",\"dt\":\"" + currentDT + "\"}";
+    gas_values = gas_values + "{\"value\":" + gasAnalogReading + ",\"dt\":\"" + currentDT + "\"}"; //form JSON array as string ready for POST
 
-    if (stackCounter > 0)
+    if (stackCounter > 0) //add any stored values in the stack to the JSON array string
     {
         for (int i = 0; i < stackCounter; i++)
         {
@@ -208,15 +210,15 @@ void clearStorage()
 void setLocalTime()
 {
     struct tm timeinfo;
-    if (!getLocalTime(&timeinfo))
+    if (!getLocalTime(&timeinfo)) //try to get updated local time from online
     {
-        Serial.println("Failed to obtain time");
+        Serial.println("Failed to obtain time"); 
         return;
     };
-    rtc.setTimeStruct(timeinfo);
+    rtc.setTimeStruct(timeinfo); //update local clock
 }
 
-int take10SecondSample()
+int take10SecondSample() //take sampleNo samples over the specificied samplePeriod - 10 samples over 10 seconds
 {
     Serial.println("taking sample...");
     currNoSamples = 0;

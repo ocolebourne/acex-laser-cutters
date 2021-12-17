@@ -1,3 +1,5 @@
+//main file for the user frontend panel
+
 import React from "react";
 
 import {
@@ -31,6 +33,7 @@ import {
 import { Chart1, Chart2 } from "../components/Charts";
 
 function LoadingSpinner(props) {
+  //loading spinner overlay shown through props.showSpinner
   return (
     <>
       {props.showSpinner ? (
@@ -50,7 +53,7 @@ function Dashboard(props) {
   const [workshopStats, setWorkshopStats] = React.useState({});
   const [loading, setLoading] = React.useState(true);
 
-  function updateWorkshopStats() {
+  function updateWorkshopStats() { //main fetch function for updating live analytics
     const requestOptions = {
       method: "GET",
       headers: {
@@ -68,10 +71,10 @@ function Dashboard(props) {
       })
       .then((workshopStats) => {
         console.log(workshopStats);
-        setWorkshopStats(workshopStats);
+        setWorkshopStats(workshopStats); //update displayed analytics with response
       })
       .catch((error) => {
-        // setWorkshopStats({
+        // setWorkshopStats({ //for testing w/o api
         //   lastHourAverage: "27.79",
         //   lastGasReadingValue: 26,
         //   lastGasReadingDt: "2021-12-16T18:46:30Z",
@@ -85,7 +88,7 @@ function Dashboard(props) {
       });
   }
 
-  function updateDeviceList() {
+  function updateDeviceList() { //main fetch function for updating equipment statuses
     const requestOptions = {
       method: "GET",
       headers: {
@@ -103,11 +106,11 @@ function Dashboard(props) {
       })
       .then((devices) => {
         console.log(devices);
-        setDeviceList(devices);
-        setTimeout(()=>{setLoading(false)},2000);
+        setDeviceList(devices); //update displayed equipment status
+        setTimeout(()=>{setLoading(false)},2000); //hide loading spinner (for first time opening)
       })
       .catch((error) => {
-        // setDeviceList([
+        // setDeviceList([ //for testing w/o api
         //   {
         //     index: 0,
         //     name: "abc3.50",
@@ -126,7 +129,7 @@ function Dashboard(props) {
       });
   }
 
-  React.useEffect(() => {
+  React.useEffect(() => { //on page load update device statuses and analytics then set 15s interval to refresh them dynamically
     updateDeviceList();
     updateWorkshopStats();
     const interval = setInterval(() => {

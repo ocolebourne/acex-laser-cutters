@@ -1,3 +1,5 @@
+//main api file - defines all api functions
+
 const functions = require("firebase-functions");
 const express = require("express");
 require("dotenv").config();
@@ -57,13 +59,13 @@ app.post("/api/tapinnoauth", async (req, res) => {
           res.status(406).send("Equipment already on");
           return;
         } else {
-          res.json({
+          res.json({ //send 200 response to admit user
             admit: true,
             plug_id: equip[0].plug_id,
             equip_name: equip[0].name,
           });
           console.log("Turning on Laser cutter" + equip[0].name);
-          await dbUtils.updateDoc(
+          await dbUtils.updateDoc( //update equipment status
             "equipment",
             { name: equip[0].name },
             { status: 1 }
@@ -75,14 +77,14 @@ app.post("/api/tapinnoauth", async (req, res) => {
             curr_user = user[0];
             delete curr_user._id;
           } else {
-            console.log("User not registered in db");
+            console.log("User not registered in db"); //for temporary function only - short_code to "user not in db"
             curr_user = { card_id: card_id };
             curr_user.short_code = "User not in db";
           }
           const dt_on = new Date().toISOString();
           curr_user.equip_name = equip_name;
           curr_user.dt_on = dt_on;
-          const user_log = {
+          const user_log = { //assemble user log
             short_code: curr_user.short_code,
             card_id: card_id,
             equip_name: equip[0].name,
@@ -139,13 +141,13 @@ app.post("/api/tapin", async (req, res) => {
           return;
         } else {
           console.log("User found, turning on " + equip[0].name);
-          res.json({
+          res.json({ //return 200, admit user
             admit: true,
             plug_id: equip[0].plug_id,
             short_code: user[0].short_code,
             equip_name: equip[0].name,
           });
-          await dbUtils.updateDoc(
+          await dbUtils.updateDoc( //update equipment status
             "equipment",
             { name: equip[0].name },
             { status: 1 }
@@ -155,7 +157,7 @@ app.post("/api/tapin", async (req, res) => {
           const dt_on = new Date().toISOString();
           curr_user.equip_name = equip_name;
           curr_user.dt_on = dt_on;
-          const user_log = {
+          const user_log = { //assemble user log
             short_code: curr_user.short_code,
             card_id: card_id,
             equip_name: equip[0].name,
@@ -194,7 +196,7 @@ app.post("/api/turnoff", async (req, res) => {
       } else {
         const equip_name = scanner[0].devices[device_id];
         const equip = await dbUtils.findDoc("equipment", { name: equip_name });
-        await dbUtils.updateDoc(
+        await dbUtils.updateDoc( //update equipment status
           "equipment",
           { name: equip[0].name },
           { status: 0 }
@@ -211,17 +213,17 @@ app.post("/api/turnoff", async (req, res) => {
           res.send("User not found in current users"); //res code 200 turn off anyway
           return;
         } else {
-          await dbUtils.deleteDoc("current_users", {
+          await dbUtils.deleteDoc("current_users", { //delete user from current users
             equip_name: equip[0].name,
           });
           const dt_off = new Date().toISOString();
-          await dbUtils.updateDoc(
+          await dbUtils.updateDoc( //add log off time to usage log
             "usage_log",
             { equip_id: equip[0]._id, dt_on: curr_user[0].dt_on },
             { dt_off: dt_off }
           );
           console.log(`Turning off ${equip_name} - ${equip[0].nickname}`);
-          res.send("Success");
+          res.send("Success"); //send 200 turn off
           return;
         }
       }
@@ -246,7 +248,7 @@ app.post("/api/devicestatus", async (req, res) => {
         status: { $exists: true },
       });
       var devices_trans = {};
-      await devices.forEach((device) => {
+      await devices.forEach((device) => { //transform equipment list into object
         devices_trans[device.name] = {
           nickname: device.nickname,
           status: device.status,
@@ -254,7 +256,7 @@ app.post("/api/devicestatus", async (req, res) => {
       });
       var resArray = [];
       const scanner_devices = scanner[0].devices;
-      await scanner_devices.forEach((device_name, index) => {
+      await scanner_devices.forEach((device_name, index) => { //assemble response array
         resArray.push({
           index: index,
           name: device_name,
@@ -262,7 +264,7 @@ app.post("/api/devicestatus", async (req, res) => {
           status: devices_trans[device_name].status,
         });
       });
-      res.json(resArray);
+      res.json(resArray); //return data
     }
   }
 });
@@ -274,7 +276,7 @@ app.get("/api/getdevicestatuses", async (req, res) => {
     status: { $exists: true },
   });
   var resArray = [];
-  await devices.forEach((device, index) => {
+  await devices.forEach((device, index) => { //assemble response array
     resArray.push({
       index: index,
       name: device.name,
@@ -282,7 +284,7 @@ app.get("/api/getdevicestatuses", async (req, res) => {
       status: device.status,
     });
   });
-  res.json(resArray);
+  res.json(resArray); //return data
 });
 
 app.get("/api/getchart1data", async (req, res) => {
@@ -290,7 +292,7 @@ app.get("/api/getchart1data", async (req, res) => {
   const startDate = new Date(req.query.start);
   const endDate = new Date(req.query.end);
   const usage = await dbUtils.findDoc("usage_log", {
-    dt_on: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
+    dt_on: { $gte: startDate.toISOString(), $lt: endDate.toISOString() }, //get gas and usage between start and end date
   });
   const gas_reports = await dbUtils.findDoc("gas_readings", {
     dt: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
@@ -312,7 +314,7 @@ app.get("/api/getchart1data", async (req, res) => {
 
   var tempData;
 
-  await usage.forEach((log) => {
+  await usage.forEach((log) => { //transform usage data for frontend (into square wave)
     dt_on = new Date(log.dt_on);
     dt_off = new Date(log.dt_off);
     dt_on_plus1 = new Date(dt_on.getTime() + 1000);
@@ -342,10 +344,10 @@ app.get("/api/getchart1data", async (req, res) => {
     }
   });
 
-  var gas_dt; //temp variable
+  var gas_dt;
   const resolution = 6;
   var counter = 5;
-  await gas_reports.forEach((report) => {
+  await gas_reports.forEach((report) => {  //transform gas readings for front end
     if (counter == resolution) {
       gas_dt = new Date(report.dt);
       gasData.push({ dt: gas_dt.getTime(), value: report.value });
@@ -362,7 +364,7 @@ app.get("/api/getchart1data", async (req, res) => {
     cutter1: cutter1Data,
   };
 
-  res.json(resArray);
+  res.json(resArray); //return data
 });
 
 app.get("/api/getchart2data", async (req, res) => {
@@ -373,7 +375,7 @@ app.get("/api/getchart2data", async (req, res) => {
   const endDate = new Date(date.setHours(18));
 
   const usage = await dbUtils.findDoc("usage_log", {
-    dt_on: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
+    dt_on: { $gte: startDate.toISOString(), $lt: endDate.toISOString() }, //get usage and gas reading between start and end date
   });
   const gas_reports = await dbUtils.findDoc("gas_readings", {
     dt: { $gte: startDate.toISOString(), $lt: endDate.toISOString() },
@@ -396,11 +398,11 @@ app.get("/api/getchart2data", async (req, res) => {
 
   var tempData;
 
-  await usage.forEach((log) => {
+  await usage.forEach((log) => { //transform usage data for front end
     if (log.equip_name == scanner.devices[0]) {
       on_value = 1;
     } else {
-      on_value = 0.99;
+      on_value = 0.99; //one cutter is displayed slightly below the other
     }
     dt_on = new Date(log.dt_on);
     dt_on_plus1 = new Date(dt_on.getTime() + 1000);
@@ -428,7 +430,7 @@ app.get("/api/getchart2data", async (req, res) => {
         }
       );
     } else {
-      //dt_off is null so cutter still in use
+      //dt_off is null i.e. cutter still in use
     }
     if (log.equip_name == scanner.devices[0]) {
       cutter0Data.push(...tempData);
@@ -440,7 +442,8 @@ app.get("/api/getchart2data", async (req, res) => {
   var gas_dt; //temp variable
   const resolution = 6;
   var counter = 6;
-  await gas_reports.forEach((report) => {
+  
+  await gas_reports.forEach((report) => { //transform gas readings
     if (counter == resolution) {
       gas_dt = new Date(report.dt);
       gasData.push({ dt: gas_dt.getTime(), value: report.value });
@@ -457,22 +460,22 @@ app.get("/api/getchart2data", async (req, res) => {
     cutter1: cutter1Data,
   };
 
-  res.json(resArray);
+  res.json(resArray); //return data
 });
 
 app.get("/api/getworkshopstats", async (req, res) => {
   //Get live analytics for user dashboard
   const datetime = new Date();
-  const oneHourAgo = new Date(datetime.getTime() - 1000 * 60 * 60);
-  const startOfDay = new Date(datetime.setHours(8, 0, 0, 0));
+  const oneHourAgo = new Date(datetime.getTime() - 1000 * 60 * 60); //time one hour ago
+  const startOfDay = new Date(datetime.setHours(8, 0, 0, 0)); //datetime at start of day (8:00am)
 
-  const gas_reports = await dbUtils.findDoc("gas_readings", {
+  const gas_reports = await dbUtils.findDoc("gas_readings", { //get gas readings since start of day
     dt: { $gte: startOfDay.toISOString() },
   });
-  const gas_reports_hour = await dbUtils.findDoc("gas_readings", {
+  const gas_reports_hour = await dbUtils.findDoc("gas_readings", { //get gas readings from the last hour
     dt: { $gte: oneHourAgo.toISOString() },
   });
-  const usage = await dbUtils.findDoc("usage_log", {
+  const usage = await dbUtils.findDoc("usage_log", { //get usage data since start of day
     dt_on: { $gte: startOfDay.toISOString() },
   });
 
@@ -540,7 +543,7 @@ app.get("/api/getworkshopstats", async (req, res) => {
     isAboveMorning: isAboveMorning,
   };
 
-  res.json(resArray);
+  res.json(resArray); //return data
 });
 
 //Gas module endpoints
@@ -556,7 +559,7 @@ app.post("/api/gasreport", async (req, res) => {
       return;
     } else {
       const values = req.body.values;
-      await dbUtils.addManyDocs("gas_readings", values);
+      await dbUtils.addManyDocs("gas_readings", values); //add gas values to db
       res.send("Success");
     }
   }
@@ -572,11 +575,11 @@ app.post("/api/changepass", async (req, res) => {
     var acex_info = await dbUtils.findDoc("acex_info", {});
     db_pass = acex_info[0].admin_password;
     if (
-      bcrypt.compareSync(req.body.old_password, db_pass) ||
+      bcrypt.compareSync(req.body.old_password, db_pass) || //compare input old_password with hashed password in database
       req.body.old_password == process.env.PASS_RESET
     ) {
-      const new_pass = bcrypt.hashSync(req.body.new_password, 10);
-      await dbUtils.updateDoc(
+      const new_pass = bcrypt.hashSync(req.body.new_password, 10); //hash new password
+      await dbUtils.updateDoc( //update password in db
         "acex_info",
         { admin_password: db_pass },
         { admin_password: new_pass }
@@ -597,15 +600,15 @@ app.post("/api/login", async (req, res) => {
   } else {
     var acex_info = await dbUtils.findDoc("acex_info", {});
     db_pass = acex_info[0].admin_password;
-    if (bcrypt.compareSync(req.body.password, db_pass)) {
-      const token = jsonwebtoken.sign(
+    if (bcrypt.compareSync(req.body.password, db_pass)) { //compare input password to hashed value in database
+      const token = jsonwebtoken.sign( //create JSON Web Token
         { user: "acex" },
         process.env.JWT_SECRET,
         {
           expiresIn: "1800s",
         }
       );
-      res.json({ token });
+      res.json({ token }); //return JWT
     } else {
       console.log("password incorrect");
       res.status(401).send("Incorrect password");
@@ -620,7 +623,7 @@ app.post("/api/adduser", middle.authenticateToken, async (req, res) => {
     return;
   } else {
     console.log(req.body);
-    await dbUtils.addDoc("users", {
+    await dbUtils.addDoc("users", { //add user to db
       short_code: req.body.short_code,
       card_id: req.body.card_id,
       dt_added: new Date().toISOString(),
@@ -641,21 +644,21 @@ app.post("/api/deluser", middle.authenticateToken, async (req, res) => {
     checkParams(res, params);
   }
   console.log(req.body);
-  const user = await dbUtils.findDoc("users", delQuery);
+  const user = await dbUtils.findDoc("users", delQuery); //find user based on query (done first so "user not found" can be returned)
   if (user.length > 0) {
-    await dbUtils.deleteDoc("users", delQuery);
+    await dbUtils.deleteDoc("users", delQuery); //delete user based on query
     res.send("Success");
   } else {
     res.status(404).send("User not found");
   }
 });
 
-function checkParams(res, params, body) {
+function checkParams(res, params, body) { //compare input parameters in the request to the specified required parameters for that function
   if (params.every((item) => body.hasOwnProperty(item))) {
     return true;
   } else {
     console.log("Incorrect params");
-    res.status(400).send("Incorrect params");
+    res.status(400).send("Incorrect params"); //return incorrect parameters if any missing
     return false;
   }
 }
